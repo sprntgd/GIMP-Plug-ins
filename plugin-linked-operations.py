@@ -15,7 +15,7 @@ def get_layers(image, visible=False, linked=False):
 def plugin_copy(image, drawable):
     plugin_cut(image, drawable, delete = False)
 
-def plugin_delete(image, drawable):
+def plugin_erase(image, drawable):
     plugin_cut(image, drawable, copy = False)
 
 # Copy or cut the selection into new layers for all visible linked layers
@@ -44,15 +44,17 @@ def plugin_cut(image, drawable, copy = True, delete = True):
                 pdb.gimp_layer_add_mask(new_layer, mask)
                 pdb.gimp_edit_fill(mask, FILL_WHITE)
                 pdb.gimp_layer_remove_mask(new_layer, MASK_APPLY)
+
+                new_layer.linked = True
+                if layer == drawable:
+                    drawable = new_layer
             
             # Erase the selected area from the original layer when cutting
             if delete:
                 pdb.gimp_edit_clear(layer)
             
             layer.linked = False
-            new_layer.linked = True
             # If the original layer was selected, select the new layer instead
-            if layer == drawable: drawable = new_layer
 
         pdb.gimp_image_set_active_layer(image, drawable)    
         pdb.gimp_image_undo_group_end(image)
@@ -204,15 +206,16 @@ def plugin_overlay(image, drawable):
     try:
         # Get all visible linked layers in the currently active group
         parent = pdb.gimp_item_get_parent(drawable)
-        layers = get_layers(image if parent is None else parent, linked=True)
+        parent_layer = image if parent is None else parent
+        layers = get_layers(parent_layer, linked=True)
         if not layers: return
         
         # Merge the selected layers down.
         pdb.gimp_image_undo_group_start(image)
         for layer in reversed(layers):
             # Sanity checks
-            if layer == drawable: continue
             if pdb.gimp_item_get_parent(layer) != parent: continue
+            if layer == drawable: continue
             
             new_layer = pdb.gimp_layer_copy(drawable, True)
             new_layer.visible = True
@@ -236,7 +239,7 @@ def plugin_overlay(image, drawable):
     except:
         pdb.gimp_message(format_exc())
 
-# Merge all visible linked layers down
+# Merge all linked layers down
 def plugin_merge(image, drawable):
     try:
         # Get all visible linked layers in the currently active group
@@ -265,6 +268,29 @@ def plugin_merge(image, drawable):
             if (second_layer == drawable): drawable = new_layer
 
         pdb.gimp_image_set_active_layer(image, drawable)
+        pdb.gimp_image_undo_group_end(image)
+    
+    except:
+        pdb.gimp_message(format_exc())
+
+# Delete all linked layers
+def plugin_delete(image, drawable):
+    try:
+        # Get all visible linked layers in the currently active group
+        parent = pdb.gimp_item_get_parent(drawable)
+        parent_layer = image if parent is None else parent
+        layers = get_layers(parent_layer, linked=True)
+        if not layers: return
+        
+        # Merge the selected layers down.
+        pdb.gimp_image_undo_group_start(image)
+        for layer in reversed(layers):
+            # Sanity checks
+            if pdb.gimp_item_get_parent(layer) != parent: continue
+            
+            position = pdb.gimp_image_get_item_position(image, layer) + 1
+            pdb.gimp_image_remove_layer(image, layer)
+
         pdb.gimp_image_undo_group_end(image)
     
     except:
@@ -367,8 +393,26 @@ if __name__ == "__main__":
         )
 
     register(
-        "python_fu_linked_delete",
+        "python_fu_linked_erase",
         "Move the the selection of each linked layer into new layers.",
+        "",
+        "Gavin Ward",
+        "Gavin Ward",
+        "2020",
+        "_Erase",
+        "*",
+        [
+            (PF_IMAGE, "image", "Input image", None),
+            (PF_DRAWABLE, "drawable", "Input drawable", None)
+        ],
+        [],
+        plugin_erase,
+        menu="<Image>/Li_nked/_Edit",
+        )
+
+    register(
+        "python_fu_linked_delete",
+        "Delete all linked layers.",
         "",
         "Gavin Ward",
         "Gavin Ward",
@@ -381,7 +425,7 @@ if __name__ == "__main__":
         ],
         [],
         plugin_delete,
-        menu="<Image>/Li_nked/_Edit",
+        menu="<Image>/Li_nked/_Layer",
         )
 
     register(
@@ -399,7 +443,7 @@ if __name__ == "__main__":
         ],
         [],
         plugin_merge,
-        menu="<Image>/Li_nked/_Paste",
+        menu="<Image>/Li_nked/_Layer",
         )
 
     register(
@@ -417,7 +461,7 @@ if __name__ == "__main__":
         ],
         [],
         plugin_overlay,
-        menu="<Image>/Li_nked/_Paste",
+        menu="<Image>/Li_nked/_Layer",
         )
 
     register(
