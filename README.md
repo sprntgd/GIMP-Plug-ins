@@ -12,6 +12,8 @@ The backgrounds do not have to be perfectly black or white, but the closer the b
 Note that semi-transparent areas do not perfectly retain the original colors and become less saturated around the edges.
 There is currently no intent to fix this - The main use case is generating images to embed in web pages, and the slight color change aids visibility when the transparent object is the same color as the page background.
 
+![Sample](/samples/plugin-generate-alpha.png)
+
 ### plugin-linked-operations.py
 Automates the linking of multiple layers and performing operations on them.  
 This started as a replacement for an old plugin "deep-float-copy.scm" that was used for copy and paste operations.  
